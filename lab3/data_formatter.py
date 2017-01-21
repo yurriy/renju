@@ -1,10 +1,7 @@
 import numpy as np
-import cv2
 from scipy.misc import toimage, imresize
 
-n = 40
-
-(im_h, im_w) = (n, n)
+(im_h, im_w) = (40, 40)
 
 indexes = dict()
 
@@ -39,20 +36,8 @@ sep = int(cnt * 0.85)
 x_train, y_train = x_full[:sep], y_full[:sep]
 x_test, y_test = x_full[sep:], y_full[sep:]
 
-# For big sizes
-
-# x_train = np.split(x_train, 10)
-# y_train = np.split(y_train, 10)
-
-# for i in range(10):
-#     np.save('data/x_train' + str(i), x_train[i])
-#     np.save('data/y_train' + str(i), y_train[i])
-
-# For little sizes
-
 np.save('data/x_train', x_train)
 np.save('data/y_train', y_train)
 
 np.save('data/x_test', x_test)
 np.save('data/y_test', y_test)
-

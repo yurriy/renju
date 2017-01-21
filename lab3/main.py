@@ -11,7 +11,7 @@ from keras.regularizers import l2
 
 np.random.seed(1337)
 
-batch_size = 1000
+batch_size = 500
 nb_classes = 500
 nb_epoch = 2
 pool_size = (2, 2)
@@ -20,15 +20,14 @@ input_shape = (40, 40, 1)
 init = "he_uniform"
 
 model = Sequential()
-model.add(Convolution2D(4, 3, 3, border_mode='same', activation='relu', input_shape=input_shape, name='conv1'))
+model.add(Convolution2D(32, 3, 3, border_mode='same', activation='relu', input_shape=input_shape, name='conv1'))
 model.add(MaxPooling2D(pool_size=pool_size, name='pool1'))
-model.add(Convolution2D(4, 3, 3, border_mode='same', activation='relu', name='conv2'))
+model.add(Convolution2D(64, 3, 3, border_mode='same', activation='relu', name='conv2'))
 model.add(MaxPooling2D(pool_size=pool_size, name='pool2'))
-model.add(Convolution2D(4, 3, 3, border_mode='same', activation='relu', name='conv3'))
-model.add(Convolution2D(32, 3, 3, border_mode='same', activation='relu', name='conv4'))
+model.add(Convolution2D(128, 3, 3, border_mode='same', activation='relu', name='conv3'))
+model.add(Convolution2D(128, 3, 3, border_mode='same', activation='relu', name='conv4'))
 model.add(MaxPooling2D(pool_size=pool_size, name='pool3'))
 model.add(BatchNormalization())
-model.add(Dense(1000, activation='relu'))
 model.add(Dense(1000, activation='relu'))
 model.add(Dropout(0.1))
 model.add(Flatten())
@@ -39,7 +38,7 @@ model.compile(loss='categorical_crossentropy',
               optimizer=opt,
               metrics=['accuracy'])
 
-model.load_weights('solution6')
+# model.load_weights('solution6')
 
 (x_test, y_test) = np.load('data/x_test.npy'), np.load('data/y_test.npy')
 (x_train, y_train) = np.load('data/x_train.npy'), np.load('data/y_train.npy')
