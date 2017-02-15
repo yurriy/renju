@@ -530,7 +530,7 @@ plt.show()
 
 # # Part 3
 
-# In[4]:
+# In[2]:
 
 def board_to_int(board):
     x = 0
@@ -547,14 +547,14 @@ def int_to_board(x):
     return board
 
 
-# In[5]:
+# In[3]:
 
 def calc_allowed_actions(state):
     board = int_to_board(state)
     return np.flatnonzero(board == 0)
 
 
-# In[6]:
+# In[4]:
 
 states_count = 3 ** 9
 allowed_actions = list(map(calc_allowed_actions, range(states_count)))
@@ -562,7 +562,7 @@ base_states = np.repeat(-1, states_count)
 transforms = np.empty(states_count, dtype=tuple)
 
 
-# In[7]:
+# In[5]:
 
 def find_similar_states(base_state):
     board = int_to_board(base_state)
@@ -582,7 +582,7 @@ for state in range(states_count):
         find_similar_states(state)
 
 
-# In[8]:
+# In[6]:
 
 class Judge:
     def __init__(self):
@@ -614,14 +614,14 @@ class Judge:
         return self.results[state]
 
 
-# In[9]:
+# In[7]:
 
 judge = Judge()
 
 
 # # SARSA
 
-# In[10]:
+# In[8]:
 
 class AgentSARSA:
     def __init__(self, alpha=0.1, epsilon=0.01, gamma=0.5):
@@ -665,7 +665,7 @@ class AgentSARSA:
 
 # # Q-learning
 
-# In[11]:
+# In[9]:
 
 class AgentQ(AgentSARSA):
     def get_action(self, state):
@@ -681,7 +681,7 @@ class AgentQ(AgentSARSA):
         return action
 
 
-# In[12]:
+# In[10]:
 
 class Simulator:
     def __init__(self, judge, agents, printable=True):
@@ -714,14 +714,14 @@ class Simulator:
                     agent.put_reward(1)
 
 
-# In[13]:
+# In[11]:
 
 class RandomAgent:
     def get_action_without_updating(self, state):
         return np.random.choice(allowed_actions[state])
 
 
-# In[14]:
+# In[12]:
 
 class Checker:
     def __init__(self, agents):
@@ -760,7 +760,7 @@ class Checker:
         return np.array([p1, p2])
 
 
-# In[20]:
+# In[13]:
 
 def train(agents):
     checker = Checker(agents)
@@ -777,7 +777,7 @@ def train(agents):
 
 # ## Sarsa and Q-learning convergence comparison
 
-# In[24]:
+# In[14]:
 
 alpha = 0.1
 epsilon = 0.5
@@ -790,7 +790,7 @@ Q_quality = train(Q_agents)[:, 1]
 SARSA_quality = train(SARSA_agents)[:, 1]
 
 
-# In[25]:
+# In[15]:
 
 n1, n2 = list(map(len, [Q_quality, SARSA_quality]))
 n = max(n1, n2)
@@ -810,7 +810,7 @@ plt.ylim(min(Q_quality.min(), SARSA_quality.min()), 1.01)
 plt.show()
 
 
-# In[26]:
+# In[72]:
 
 class PlayingInterface:
     def __init__(self, agents, role=1):
@@ -871,18 +871,195 @@ class PlayingInterface:
         print(b)
 
 
-# In[32]:
+# In[53]:
 
 Q_agents = AgentQ(alpha, epsilon, gamma), AgentQ(alpha, epsilon, gamma)
 
 sim = Simulator(judge, Q_agents)
-sim.play_games(20000)
+sim.play_games(10000)
 
 
-# In[33]:
+# In[73]:
 
-p = PlayingInterface(Q_agents, 2)
+p = PlayingInterface(Q_agents, role=1)
 p.start()
+
+
+# # GUI
+
+# In[37]:
+
+
+
+# Python TicTacToe game with Tk GUI and minimax AI
+# Author: Maurits van der Schee <maurits@vdschee.nl>
+
+import sys
+if sys.version_info >= (3, 0):
+    from tkinter import Tk, Button
+    from tkinter.font import Font
+else:
+    from Tkinter import Tk, Button
+    from tkFont import Font
+from copy import deepcopy
+
+class Board:
+  
+    def __init__(self, agents, role):
+        self.state = 0
+        self.agents = agents
+        self.player = 'X'
+        self.opponent = 'O'
+        self.empty = '.'
+        self.size = 3
+        self.fields = {}
+        for y in range(self.size):
+            for x in range(self.size):
+                self.fields[x,y] = self.empty
+      
+    def move(self,x,y):
+        action = y * 3 + x
+        if self.player == 'X':
+            role = 1
+        else:
+            role = 2
+        self.state += role * 3 ** action
+        self.fields[x,y] = self.player
+        (self.player,self.opponent) = (self.opponent,self.player)
+  
+    def tied(self):
+        for (x,y) in self.fields:
+            if self.fields[x,y]==self.empty:
+                return False
+        return True
+
+    def get_agent_ans(self):
+        state = self.state
+        if not len(allowed_actions[state]):
+            return
+        transform = transforms[state]
+        state = base_states[state]
+        if self.player == 'X':
+            role = 1
+        else:
+            role = 2
+        action = self.agents[role - 1].get_action_without_updating(state)
+        board = int_to_board(role * 3 ** action)
+        board = np.rot90(board, transform[0])
+        if transform[1]:
+            board = np.fliplr(board)
+        pos = np.nonzero(board)
+        y = pos[0][0]
+        x = pos[1][0]
+        self.move(x, y)
+  
+    def won(self):
+        # horizontal
+        for y in range(self.size):
+            winning = []
+            for x in range(self.size):
+                if self.fields[x,y] == self.opponent:
+                    winning.append((x,y))
+            if len(winning) == self.size:
+                return winning
+        # vertical
+        for x in range(self.size):
+            winning = []
+            for y in range(self.size):
+                if self.fields[x,y] == self.opponent:
+                    winning.append((x,y))
+            if len(winning) == self.size:
+                return winning
+        # diagonal
+        winning = []
+        for y in range(self.size):
+            x = y
+            if self.fields[x,y] == self.opponent:
+                winning.append((x,y))
+        if len(winning) == self.size:
+            return winning
+        # other diagonal
+        winning = []
+        for y in range(self.size):
+            x = self.size-1-y
+            if self.fields[x,y] == self.opponent:
+                winning.append((x,y))
+        if len(winning) == self.size:
+            return winning
+        # default
+        return None
+  
+    def __str__(self):
+        string = ''
+        for y in range(self.size):
+            for x in range(self.size):
+                string+=self.fields[x,y]
+            string+="\n"
+        return string
+        
+class GUI:
+
+    def __init__(self, agents, role=1):
+        self.agents = agents
+        self.role = role
+        self.app = Tk()
+        self.app.title('TicTacToe')
+        self.app.resizable(width=False, height=False)
+        self.board = Board(agents, role)
+        self.font = Font(family="Helvetica", size=32)
+        self.buttons = {}
+        for x,y in self.board.fields:
+            handler = lambda x=x,y=y: self.move(x,y)
+            button = Button(self.app, command=handler, font=self.font, width=2, height=1)
+            button.grid(row=y, column=x)
+            self.buttons[x,y] = button
+        handler = lambda: self.reset()
+        button = Button(self.app, text='reset', command=handler)
+        button.grid(row=self.board.size+1, column=0, columnspan=self.board.size, sticky="WE")
+        if role == 2:
+            self.board.get_agent_ans()
+        self.update()
+    
+    def reset(self):
+        self.board = Board(self.agents, self.role)
+        if self.role == 2:
+            self.board.get_agent_ans()
+        self.update()
+  
+    def move(self,x,y):
+        self.app.config(cursor="watch")
+        self.app.update()
+        self.board.move(x,y)
+        self.update()
+        self.board.get_agent_ans()
+        self.update()
+        self.app.config(cursor="")
+            
+    def update(self):
+        for (x,y) in self.board.fields:
+            text = self.board.fields[x,y]
+            self.buttons[x,y]['text'] = text
+            self.buttons[x,y]['disabledforeground'] = 'black'
+            if text==self.board.empty:
+                self.buttons[x,y]['state'] = 'normal'
+            else:
+                self.buttons[x,y]['state'] = 'disabled'
+        winning = self.board.won()
+        if winning:
+            for x,y in winning:
+                self.buttons[x,y]['disabledforeground'] = 'red'
+            for x,y in self.buttons:
+                self.buttons[x,y]['state'] = 'disabled'
+        for (x,y) in self.board.fields:
+            self.buttons[x,y].update()
+
+    def mainloop(self):
+        self.app.mainloop()
+
+
+# In[71]:
+
+GUI(Q_agents, role=1).mainloop()
 
 
 # In[ ]:
