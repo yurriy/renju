@@ -1,12 +1,11 @@
 
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ipdb
-from tqdm import tqdm
+import progressbar
 
 np.random.seed(0)
 
@@ -21,7 +20,7 @@ np.random.seed(0)
 
 # ## Generating actions:
 
-# In[4]:
+# In[2]:
 
 class Action:
     def __init__(self, mu, sigma):
@@ -32,7 +31,7 @@ class Action:
         return np.random.normal(self.mu, self.sigma)
 
 
-# In[5]:
+# In[3]:
 
 rounds_cnt = 1000
 actions_cnt = 20
@@ -44,7 +43,7 @@ actions = list(map(lambda mu: Action(mu, sigma), mus))
 print("Actions rewards expectations: ", mus)
 
 
-# In[176]:
+# In[4]:
 
 optimal_result = mus.max() * rounds_cnt
 print(optimal_result)
@@ -52,7 +51,7 @@ print(optimal_result)
 
 # ## Graph of average final reward depending on params:
 
-# In[227]:
+# In[5]:
 
 def show_results(params, results, xlabel):
     plt.plot(params, results)
@@ -64,7 +63,7 @@ def show_results(params, results, xlabel):
 
 # ## Graph of average reward on step t:
 
-# In[239]:
+# In[6]:
 
 def show_average_game(history):
     print('Averange final reward: ', history.max())
@@ -108,21 +107,24 @@ class GreedyStrategy:
         return np.array(history)
 
 
-# In[179]:
+# In[8]:
 
-def average_history(strategy, games=100, progress_range=[0, 100]):
+def average_history(strategy, games=1000, printable=True):
     history = np.zeros(rounds_cnt)
-    diff = progress_range[1] - progress_range[0]
-    for i in range(games):
-        progress = round(progress_range[0] + diff * i / games, 1)
-        print('\r' * 10 + str(progress) + '%', end='')
+    
+    generator = range(games)
+    if printable:
+        bar = progressbar.ProgressBar()
+        generator = bar(generator)
+        
+    for i in generator:
         history += strategy.run(actions) / games
         strategy.reset()
-    print('\r' * 10, end='')
+        
     return history
 
 
-# In[235]:
+# In[9]:
 
 strategy = GreedyStrategy(initial_q=5)
 greedy_history = average_history(strategy, games=1000)
@@ -138,7 +140,7 @@ show_average_game(greedy_history)
 
 # # $\varepsilon$-Greedy strategy
 
-# In[9]:
+# In[10]:
 
 class EGreedyStrategy(GreedyStrategy):
     def __init__(self, initial_q=0, epsilon=0):
@@ -159,36 +161,36 @@ class EGreedyStrategy(GreedyStrategy):
 
 # ## Optimizing $\varepsilon$
 
-# In[180]:
+# In[11]:
 
-def evaluate_params(Strategy, params, games=100):
+def evaluate_params(Strategy, params, games=1000):
     strategies = list(map(Strategy, params))
     results = []
-    i = 0
-    for st in strategies:
-        results.append(average_history(st, games=games, progress_range=[1.0 * i / len(strategies) * 100, 1.0 * (i + 1) / len(strategies) * 100]).max())
-        i += 1
+    bar = progressbar.ProgressBar()
+    for st in bar(strategies):
+        history = average_history(st, games, printable=False)
+        results.append(history[-1])
     return results
 
 
-# In[178]:
+# In[13]:
 
 def Strategy(epsilon):
     return EGreedyStrategy(epsilon=epsilon)
 
 epsilons = np.linspace(0.0, 0.25, num=20)
-results = evaluate_params(Strategy, epsilons, games=100)
+e_greedy_results = evaluate_params(Strategy, epsilons, games=1000)
 
-egreedy_epsilon_opt = epsilons[np.argmax(results)]
+egreedy_epsilon_opt = epsilons[np.argmax(e_greedy_results)]
 print("Optimal epsilon: ", egreedy_epsilon_opt)
 
-show_results(epsilons, results, r'$varepsilon')
+show_results(epsilons, e_greedy_results, r'$\varepsilon$')
 
 
-# In[240]:
+# In[14]:
 
 st = EGreedyStrategy(epsilon=egreedy_epsilon_opt)
-egreedy_history = average_history(st, games=100)
+egreedy_history = average_history(st, games=1000)
 
 show_average_game(egreedy_history)
 
@@ -197,45 +199,45 @@ show_average_game(egreedy_history)
 
 # При $\varepsilon\to 0$ стратегия превращается в обычную жадную, при $\varepsilon\to\infty$ действие выбирается случайно.
 
-# In[14]:
+# In[15]:
 
 def softmax(x):
     e_x = np.exp(x - x.max())
     return e_x / e_x.sum()
 
 
-# In[15]:
+# In[16]:
 
 class SoftmaxStrategy(EGreedyStrategy):    
     def choose_action(self):
         return np.random.choice(np.arange(actions_cnt), p=softmax(self.q / self.epsilon))
 
 
-# In[183]:
+# In[17]:
 
 def Strategy(epsilon):
     return SoftmaxStrategy(epsilon=epsilon)
 
 epsilons = np.linspace(0.01, 0.5, num=30)
-results = evaluate_params(Strategy, epsilons, games=100)
+softmax_results = evaluate_params(Strategy, epsilons, games=1000)
 
-softmax_epsilon_opt = epsilons[np.argmax(results)]
+softmax_epsilon_opt = epsilons[np.argmax(softmax_results)]
 print("Optimal epsilon: ", softmax_epsilon_opt)
 
-show_results(epsilons, results, r'$varepsilon$')
+show_results(epsilons, softmax_results, r'$\varepsilon$')
 
 
-# In[241]:
+# In[18]:
 
 st = SoftmaxStrategy(epsilon=softmax_epsilon_opt)
-softmax_history = average_history(st, games=100)
+softmax_history = average_history(st, games=1000)
 
 show_average_game(softmax_history)
 
 
 # # Upper confidence bound
 
-# In[191]:
+# In[19]:
 
 class UCBStrategy(EGreedyStrategy):        
     def choose_action(self):
@@ -247,7 +249,7 @@ class UCBStrategy(EGreedyStrategy):
         return np.random.choice(best_actions)
 
 
-# In[242]:
+# In[20]:
 
 def Strategy(epsilon):
     return UCBStrategy(epsilon=epsilon)
@@ -261,7 +263,7 @@ print("Optimal epsilon: ", ucb_epsilon_opt)
 show_results(epsilons, results, r'$\varepsilon$')
 
 
-# In[245]:
+# In[21]:
 
 st = UCBStrategy(epsilon=ucb_epsilon_opt)
 ucb_history = average_history(st, games=1000)
@@ -271,7 +273,7 @@ show_average_game(ucb_history)
 
 # # Gradient bandit policy
 
-# In[195]:
+# In[22]:
 
 class GradientBanditStrategy:
     def __init__(self, alpha, beta):
@@ -309,24 +311,21 @@ class GradientBanditStrategy:
             full_reward += reward
             history.append(full_reward)
             self.t += 1
-        return np.array(history)
-        
+        return np.array(history)        
 
 
-# In[196]:
+# In[23]:
 
 def alpha(t):
     return 1 / (t + 1)
 
-st = GradientBanditStrategy(alpha, 0.1)
 
-
-# In[ ]:
+# In[24]:
 
 def Strategy(beta):
     return GradientBanditStrategy(alpha=alpha, beta=beta)
 
-betas = np.linspace(0.0, 2.0, num=40)
+betas = np.linspace(0.0, 1.0, num=20)
 results = evaluate_params(Strategy, betas, games=1000)
 
 grad_beta_opt = epsilons[np.argmax(results)]
@@ -335,17 +334,17 @@ print("Optimal beta: ", grad_beta_opt)
 show_results(betas, results, r'$\beta$')
 
 
-# In[251]:
+# In[25]:
 
 st = GradientBanditStrategy(alpha, grad_beta_opt)
-grad_history = average_history(st, games=100)
+grad_history = average_history(st, games=1000)
 
 show_average_game(grad_history)
 
 
 # # Strategies comparison
 
-# In[255]:
+# In[26]:
 
 histories = [greedy_history, egreedy_history, softmax_history, ucb_history, grad_history]
 results = np.array(list(map(np.max, histories)))
@@ -360,7 +359,7 @@ plt.xticks(positions_x + 1, ('Greedy', r'$\varepsilon$-Greedy', 'Softmax', 'UCB'
 plt.show()
 
 
-# In[254]:
+# In[27]:
 
 plt.plot(greedy_history, label='Greedy')
 plt.plot(egreedy_history, label=r'$\varepsilon$-Greedy')
@@ -392,14 +391,14 @@ plt.show()
 # 
 # Награды: 1 при совершении действия 1 в состоянии 99, 0 иначе.
 
-# In[79]:
+# In[28]:
 
 states_cnt = 100
 actions_cnt = 2
 rewards_cnt = 2
 
 
-# In[244]:
+# In[29]:
 
 class Environment:
     def __init__(self):
@@ -423,7 +422,7 @@ class Environment:
             return 0
 
 
-# In[327]:
+# In[30]:
 
 class PolicyIterationStrategy:
     def __init__(self, gamma, env):
@@ -466,7 +465,7 @@ class PolicyIterationStrategy:
             policy = updated_policy
 
 
-# In[333]:
+# In[31]:
 
 env = Environment()
 gamma = 0.5
@@ -477,7 +476,7 @@ print("Optimal policy:", policy)
 print("Iterations: ", st1.iterations_cnt)
 
 
-# In[335]:
+# In[32]:
 
 class ValueInterationStrategy(PolicyIterationStrategy):
     def get_optimal_policy(self):
@@ -497,7 +496,7 @@ class ValueInterationStrategy(PolicyIterationStrategy):
             policy = updated_policy
 
 
-# In[356]:
+# In[33]:
 
 st2 = ValueInterationStrategy(1, env)
 policy = st2.get_optimal_policy()
@@ -505,7 +504,7 @@ print("Optimal policy:", policy)
 print("Iterations: ", st2.iterations_cnt)
 
 
-# In[355]:
+# In[34]:
 
 gammas_cnt = 40
 gammas = np.linspace(0, 0.9, gammas_cnt)
@@ -530,7 +529,6 @@ plt.show()
 # $V^*_{s}(\gamma)$ растет экспонециально быстро, при $\gamma\geq1$ не сходится.
 
 # # Part 3
-# 
 
 # In[4]:
 
@@ -549,14 +547,14 @@ def int_to_board(x):
     return board
 
 
-# In[6]:
+# In[5]:
 
 def calc_allowed_actions(state):
     board = int_to_board(state)
     return np.flatnonzero(board == 0)
 
 
-# In[7]:
+# In[6]:
 
 states_count = 3 ** 9
 allowed_actions = list(map(calc_allowed_actions, range(states_count)))
@@ -564,7 +562,7 @@ base_states = np.repeat(-1, states_count)
 transforms = np.empty(states_count, dtype=tuple)
 
 
-# In[8]:
+# In[7]:
 
 def find_similar_states(base_state):
     board = int_to_board(base_state)
@@ -584,7 +582,7 @@ for state in range(states_count):
         find_similar_states(state)
 
 
-# In[9]:
+# In[8]:
 
 class Judge:
     def __init__(self):
@@ -616,14 +614,14 @@ class Judge:
         return self.results[state]
 
 
-# In[10]:
+# In[9]:
 
 judge = Judge()
 
 
 # # SARSA
 
-# In[112]:
+# In[10]:
 
 class AgentSARSA:
     def __init__(self, alpha=0.1, epsilon=0.01, gamma=0.5):
@@ -667,7 +665,7 @@ class AgentSARSA:
 
 # # Q-learning
 
-# In[113]:
+# In[11]:
 
 class AgentQ(AgentSARSA):
     def get_action(self, state):
@@ -683,7 +681,7 @@ class AgentQ(AgentSARSA):
         return action
 
 
-# In[114]:
+# In[12]:
 
 class Simulator:
     def __init__(self, judge, agents, printable=True):
@@ -691,17 +689,14 @@ class Simulator:
         self.judge = judge
         self.printable = printable
         
-    def print_progress(self, current_game, games_cnt):
-        if self.printable:
-            percent = round((current_game + 1) / games_cnt * 100, 1)
-            print('\r' * 10 + str(percent) + '%', end='')
-            if percent == 100:
-                print()
-        
     def play_games(self, games_cnt):
-        for i in range(games_cnt):
-            if i % 100 == 0 or i == games_cnt - 1:
-                self.print_progress(i, games_cnt)
+        
+        generator = range(games_cnt)
+        if self.printable:
+            bar = progressbar.ProgressBar()
+            generator = bar(generator)
+            
+        for i in generator:
             state = 0
             player = 0
             while self.judge.get_result(state) == 3:
@@ -719,14 +714,14 @@ class Simulator:
                     agent.put_reward(1)
 
 
-# In[115]:
+# In[13]:
 
 class RandomAgent:
     def get_action_without_updating(self, state):
         return np.random.choice(allowed_actions[state])
 
 
-# In[116]:
+# In[14]:
 
 class Checker:
     def __init__(self, agents):
@@ -765,7 +760,7 @@ class Checker:
         return np.array([p1, p2])
 
 
-# In[166]:
+# In[20]:
 
 def train(agents):
     checker = Checker(agents)
@@ -775,12 +770,14 @@ def train(agents):
     while not((wins_percentage == 1).all()):
         simulator.play_games(1000)
         wins_percentage = checker.get_wins_percentage(10000)
-        print(wins_percentage)
+        print('quality: ', wins_percentage)
         history.append(wins_percentage)
     return np.array(history)
 
 
-# In[189]:
+# ## Sarsa and Q-learning convergence comparison
+
+# In[24]:
 
 alpha = 0.1
 epsilon = 0.5
@@ -793,7 +790,7 @@ Q_quality = train(Q_agents)[:, 1]
 SARSA_quality = train(SARSA_agents)[:, 1]
 
 
-# In[187]:
+# In[25]:
 
 n1, n2 = list(map(len, [Q_quality, SARSA_quality]))
 n = max(n1, n2)
@@ -813,7 +810,7 @@ plt.ylim(min(Q_quality.min(), SARSA_quality.min()), 1.01)
 plt.show()
 
 
-# In[154]:
+# In[26]:
 
 class PlayingInterface:
     def __init__(self, agents, role=1):
@@ -874,7 +871,15 @@ class PlayingInterface:
         print(b)
 
 
-# In[155]:
+# In[32]:
+
+Q_agents = AgentQ(alpha, epsilon, gamma), AgentQ(alpha, epsilon, gamma)
+
+sim = Simulator(judge, Q_agents)
+sim.play_games(20000)
+
+
+# In[33]:
 
 p = PlayingInterface(Q_agents, 2)
 p.start()
