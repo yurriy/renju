@@ -76,7 +76,7 @@ def show_average_game(history):
 
 # ## Greedy strategy
 
-# In[7]:
+# In[40]:
 
 class GreedyStrategy:
     def __init__(self, initial_q=0):
@@ -140,7 +140,7 @@ show_average_game(greedy_history)
 
 # # $\varepsilon$-Greedy strategy
 
-# In[10]:
+# In[41]:
 
 class EGreedyStrategy(GreedyStrategy):
     def __init__(self, initial_q=0, epsilon=0):
@@ -151,10 +151,10 @@ class EGreedyStrategy(GreedyStrategy):
     
     def choose_action(self):
         best_actions = np.flatnonzero(self.q == self.q.max())
-        gr_choice = np.random.choice(best_actions)
-        exp_choice = np.random.randint(actions_cnt)
+        greedy_choice = np.random.choice(best_actions)
+        rand_choice = np.random.randint(actions_cnt)
         probabilities = [1 - self.epsilon, self.epsilon]
-        return np.random.choice([gr_choice, exp_choice], p=probabilities)
+        return np.random.choice([greedy_choice, rand_choice], p=probabilities)
 
 
 # Здесь $Q(a)$ инициализируется нулями, так как если подбирать большие значения, как в предыдущей стратегии, то $\varepsilon$-стратегия теряет смысл.
@@ -554,15 +554,16 @@ def calc_allowed_actions(state):
     return np.flatnonzero(board == 0)
 
 
-# In[4]:
+# In[73]:
 
 states_count = 3 ** 9
+actions_count = 9
 allowed_actions = list(map(calc_allowed_actions, range(states_count)))
 base_states = np.repeat(-1, states_count)
 transforms = np.empty(states_count, dtype=tuple)
 
 
-# In[5]:
+# In[74]:
 
 def find_similar_states(base_state):
     board = int_to_board(base_state)
@@ -582,7 +583,7 @@ for state in range(states_count):
         find_similar_states(state)
 
 
-# In[6]:
+# In[75]:
 
 class Judge:
     def __init__(self):
@@ -614,22 +615,22 @@ class Judge:
         return self.results[state]
 
 
-# In[7]:
+# In[76]:
 
 judge = Judge()
 
 
 # # SARSA
 
-# In[8]:
+# In[77]:
 
 class AgentSARSA:
     def __init__(self, alpha=0.1, epsilon=0.01, gamma=0.5):
         self.alpha = alpha
         self.epsilon = epsilon
         self.gamma = gamma
-        self.q = np.zeros((states_count, 9))
-        self.count = np.zeros((states_count, 9), 'int')
+        self.q = np.zeros((states_count, actions_count))
+        self.count = np.zeros((states_count, actions_count), 'int')
         self.prev_state = 0
         self.prev_action = 0
         
@@ -640,15 +641,18 @@ class AgentSARSA:
         good_choice = np.random.choice(best_actions)
         rand_choice = np.random.choice(allowed_actions[state])
         return np.random.choice([good_choice, rand_choice], p=[1 - self.epsilon, self.epsilon])
-        
-    def get_action(self, state):
-        action = self.choose_action(state)
-        self.count[state][action] += 1
+    
+    def update(self, state, action):
         if self.prev_state != -1:
             self.q[self.prev_state][self.prev_action] += self.alpha * (self.gamma * self.q[state][action]
                                                                        - self.q[self.prev_state][self.prev_action])
         self.prev_state = state
         self.prev_action = action
+        
+    def get_action(self, state):
+        action = self.choose_action(state)
+        self.count[state][action] += 1
+        self.update(state, action)
         return action
     
     def put_reward(self, reward):
@@ -665,23 +669,19 @@ class AgentSARSA:
 
 # # Q-learning
 
-# In[9]:
+# In[78]:
 
 class AgentQ(AgentSARSA):
-    def get_action(self, state):
-        action = self.choose_action(state)
-        self.count[state][action] += 1
-        
+    def update(self, state, action):
         if self.prev_state != -1:
             q_max = self.q[state].take(allowed_actions[state]).max()
             self.q[self.prev_state][self.prev_action] += self.alpha * (self.gamma * q_max
                                                                        - self.q[self.prev_state][self.prev_action])
         self.prev_state = state
         self.prev_action = action
-        return action
 
 
-# In[10]:
+# In[64]:
 
 class Simulator:
     def __init__(self, judge, agents, printable=True):
@@ -714,14 +714,14 @@ class Simulator:
                     agent.put_reward(1)
 
 
-# In[11]:
+# In[65]:
 
 class RandomAgent:
     def get_action_without_updating(self, state):
         return np.random.choice(allowed_actions[state])
 
 
-# In[12]:
+# In[66]:
 
 class Checker:
     def __init__(self, agents):
@@ -760,7 +760,7 @@ class Checker:
         return np.array([p1, p2])
 
 
-# In[13]:
+# In[67]:
 
 def train(agents):
     checker = Checker(agents)
@@ -777,20 +777,33 @@ def train(agents):
 
 # ## Sarsa and Q-learning convergence comparison
 
-# In[14]:
+# In[163]:
 
-alpha = 0.1
-epsilon = 0.5
-gamma = 0.2
+alpha = 0.2
+epsilon = 0.25
+gamma = 0.5
+
+
+# In[166]:
 
 SARSA_agents = AgentSARSA(alpha, epsilon, gamma), AgentSARSA(alpha, epsilon, gamma)
-Q_agents = AgentQ(alpha, epsilon, gamma), AgentQ(alpha, epsilon, gamma)
-
-Q_quality = train(Q_agents)[:, 1]
 SARSA_quality = train(SARSA_agents)[:, 1]
 
 
-# In[15]:
+# In[167]:
+
+alpha = 0.1
+epsilon = 0.5
+gamma = 0.1
+
+
+# In[168]:
+
+Q_agents = AgentQ(alpha, epsilon, gamma), AgentQ(alpha, epsilon, gamma)
+Q_quality = train(Q_agents)[:, 1]
+
+
+# In[169]:
 
 n1, n2 = list(map(len, [Q_quality, SARSA_quality]))
 n = max(n1, n2)
@@ -810,7 +823,7 @@ plt.ylim(min(Q_quality.min(), SARSA_quality.min()), 1.01)
 plt.show()
 
 
-# In[72]:
+# In[170]:
 
 class PlayingInterface:
     def __init__(self, agents, role=1):
@@ -871,7 +884,7 @@ class PlayingInterface:
         print(b)
 
 
-# In[53]:
+# In[172]:
 
 Q_agents = AgentQ(alpha, epsilon, gamma), AgentQ(alpha, epsilon, gamma)
 
@@ -879,7 +892,13 @@ sim = Simulator(judge, Q_agents)
 sim.play_games(10000)
 
 
-# In[73]:
+# In[174]:
+
+p = PlayingInterface(Q_agents, role=2)
+p.start()
+
+
+# In[173]:
 
 p = PlayingInterface(Q_agents, role=1)
 p.start()
@@ -887,7 +906,7 @@ p.start()
 
 # # GUI
 
-# In[37]:
+# In[175]:
 
 
 
@@ -1057,9 +1076,9 @@ class GUI:
         self.app.mainloop()
 
 
-# In[71]:
+# In[178]:
 
-GUI(Q_agents, role=1).mainloop()
+GUI(Q_agents, role=2).mainloop()
 
 
 # In[ ]:
