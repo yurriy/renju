@@ -1,6 +1,0 @@
-python=3.5.0
-numpy=1.12.1
-tensorflow=1.0.1
-matplotlib
-keras
-ipykernel
