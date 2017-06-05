@@ -12,7 +12,7 @@ REWARD = 10
 TIMEOUT = 3.5
 MAX_DEPTH = 10
 
-model = load_model('TrainedWithRotations')
+model = load_model('trained_model')
 
 def make_board(state):
     board = np.zeros((15, 15, 3))

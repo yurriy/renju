@@ -146,9 +146,9 @@ model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adamax(),
               metrics=['accuracy'])
 
-model.load_weights('TrainedWithRotations')
+model.load_weights('trained_model')
 
-save_callback = keras.callbacks.ModelCheckpoint('TrainedWithRotations',
+save_callback = keras.callbacks.ModelCheckpoint('trained_model',
     monitor='acc',
     verbose=1,
     save_best_only=True,
